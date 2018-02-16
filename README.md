@@ -42,7 +42,7 @@ The following are things I'd like to add in the next 1-2 years:
 
 The following are things hopefully will eventually get written:
 
-- Relativisitc Flows
+- Relativistic Flows
 - Higher-Order Methods
 - Implicit Hydrodynamics
 
