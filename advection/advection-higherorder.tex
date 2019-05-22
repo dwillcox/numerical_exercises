@@ -1,410 +1,6 @@
-\label{ch:advection}
-
-
-\section{The linear advection equation}
-
-The linear advection equation is simply:
-\begin{equation}
-\label{eq:advect}
-a_t + u a_x = 0
-\end{equation}
-where $a(x,t)$ is some scalar quantity and $u$ is the velocity at
-which it is advected ($u > 0$ advects to the right).  The solution to
-Eq.~\ref{eq:advect} is to simply take the initial data, $a(x,t=0)$,
-and displace it to the right at a speed $u$.  The shape of the initial
-data is preserved in the advection.  Many hyperbolic systems of PDEs,
-e.g.\ the equations of hydrodynamics, can be written in a form that
-looks like a system of (nonlinear) advection equations, so the
-advection equation provides important insight into the methods used
-for these systems.
-%
-\begin{exercise}[Linear advection analytic solution]
-{Show via substitution that $a(x - ut)$ is a solution to
-  Eq.~\ref{eq:advect} for any choice of a.  This means that
-the solution is constant along the lines $x = u t$
-(the curves along which the solution is constant are called the
-characteristics).}
-\end{exercise}
-
-Figure~\ref{fig:advection_char} shows an initial profile, $a(x)$, and
-the corresponding characteristics in the $t$-$x$ plane.  With time,
-since the solution is constant along these characteristics, it simply
-each point simply follows the characteristic curve, resulting in a
-shift of the profile to the right.
-
-An important concept that we will discuss shortly is {\em stability}.
-Not every discretization that we write down will be well behaved.  For
-some, our initial state will begin to ``blow-up'', and take on
-obscenely large and unphysical values after just a few steps.  This is
-the hallmark of a method that is unstable.  Some methods have
-restrictions on the size of the timestep that result in a stable
-methods as well.
-
-% this figure is produced by figures/advection/characteristics.py
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.6\linewidth]{advection-characteristics}
-\caption[Characteristics for linear advection]
-{\label{fig:advection_char} (top) Initially sinusoidal
-distribution (bottom) Characteristic
-structure for the linear advection equation $u = 1$.  Note
-that for this linear equation the characteristics are all parallel
-(they have the same slope in the $t$-$x$ plane.}
-\end{figure}
-
-\section{First-order advection in 1-d and finite-differences}
-
-To get a flavor of the methods for advection, we will use a simple
-finite-difference discretization---here, the domain is divided into
-a sequence of points where we store the solution.
-We will solve
-Eq.~\ref{eq:advect} numerically by discretizing the solution at
-these points.  The index $i$ denotes the point's location, and $a_i$
-denotes the discrete value of $a(x)$ in zone $i$.  The data in each
-zone can be initialized as $a_i = a(x_i)$.  Figure~\ref{fig:fdgrid}
-shows the grid.
-
-We also need to discretize in time.  We denote the time-level of the
-solution with a superscript, so $a_i^n = a(x_i,t^n)$.  For a fixed
-$\Delta t$, time level $n$ corresponds to a time of $t = n\Delta t$.
-
-
-A simple first-order accurate discretization is:
-\begin{equation}
-\frac{a_i^{n+1} - a_i^n}{\Delta t} = - u \frac{a_i^n - a_{i-1}^n}{\Delta x}
-\label{eq:fo}
-\end{equation}
-This is an {\em explicit} method, since the new solution, $a_i^{n+1}$,
-depends only on information at the old time level, $n$.  
-
-Finally, we also need to specify a boundary condition for this.  Our
-choice of spatial derivative is one-sided---it uses information from
-the zone to the left of the zone we are updating.  This is because
-information is flowing from left to right in this problem ($u > 0$).
-This choice of the derivative is called {\em upwinding}---this choice
-of derivative results in a stable method.
-Notice that if we use Eq.~\ref{eq:fo} to update the data in the first
-zone inside the boundary, we need data to the left of this
-zone---outside of the domain.  This means that we need a single
-{\em ghost point} to implement the boundary conditions for our method.  The
-presence of the ghost points allow us to use the same update equation
-(e.g.\ Eq.~\ref{eq:fo}) for all zones in the domain.
-
-
-% figure created by figures/advection/fd-ghost.py
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{fd_ghost}
-\caption[A simple finite-difference grid]{\label{fig:fdgrid} A simple
-  finite-difference grid.  The solution is stored at each of the
-  labeled points.  The dotted lines show the ghost points used to
-  extend our grid past the physical boundaries to accommodate boundary
-  conditions.  Note that if we are periodic, then points $0$ and $N-1$
-  are at the same physical point in space, so we would only need to
-  update one of them.}
-\end{figure}
-
-The last piece of information needed to update the solution is the
-timestep, $\Delta t$.  It can be shown that for the solution to be
-{\em stable}, the timestep must be less than the time it takes information
-to propagate across a single zone.  That is:
-\begin{equation}
-\Delta t \le \frac{\Delta x}{u} \enskip .
-\end{equation}
-This is called the {\em Courant-Friedrichs-Lewy} or {\em CFL}
-condition.  A dimensionless quantity called the {\em CFL number} is 
-defined as 
-\begin{equation}
-\cfl = \frac{\Delta t u }{\Delta x} 
-\end{equation}
-Stability requires $\cfl \le 1$.
-%
-We traditionally write the timestep as
-\begin{equation}
-\label{eq:timestep}
-\Delta t = \cfl \frac{\Delta x}{u}
-\end{equation}
-and specify $\cfl$ as part of the problem (a typical value may be $\cfl = 0.7$).
-
-\begin{exercise}[Perfect advection with a Courant number of 1]
-{Show analytically that when you use $\cfl=1$ in the
-  first-order differenced advection equation (Eq.~\ref{eq:fo}) that
-  you advect the profile exactly, without any numerical error.}
-\end{exercise}
-
-Keep in mind that, in general, we will be solving a non-linear
-system of equations, so it is not possible to run with $\cfl=1$, 
-since $u$ (and therefore $\cfl$) will change from zone to zone.
-Instead, one looks at the most restrictive timestep over all the
-zones and uses that for the entire system.
-
-
-\begin{exercise}[A 1-d finite-difference solver for linear advection]
-{Write a code to solve the 1-d linear advection equation
-  using the discretization of Eq.~\ref{eq:fo} on the domain $[0,1]$ with
-  $u=1$ and periodic boundary conditions.  For initial conditions,
-  try both a Gaussian profile and a top-hat:}
-  \begin{equation}
-  a = \left \{
-      \begin{array}{lllll}0 & \mathit{~if~~} &         &x& < 1/3 \\
-                          1 & \mathit{~if~~} & 1/3 \le &x& < 2/3 \\
-                          0 & \mathit{~if~~} & 2/3 \le &x&
-      \end{array}
-      \right .
-  \end{equation}
-
-  \noindent Note: For a general treatment of boundary conditions, you would
-    initialize the ghost points to their corresponding periodic data
-    and apply the difference equations to zones $0, \ldots, N-1$.
-    However, for periodic BCs on this grid, points $0$ and $N-1$ are
-    identical, so you could do the update in this special case on
-    points $1, \ldots, N-1$ without the need for ghost points and then
-    set $a_0 = a_{N-1}$ after the update. \\
-
-  \noindent Run you program for one or more periods (one period
-    is $T=1/u$) with several different CFL numbers and notice that
-    there is substantial numerical dissipation (see Figure~\ref{fig:fdadvect}).
-\end{exercise}
-
-\begin{figure}[t]
-\centering
-% figure generated by hydro_examples/advection/fdadvect.py
-\includegraphics[width=0.8\linewidth]{fdadvect-upwind}
-\caption[First-order finite-difference solution to linear advection]
-{\label{fig:fdadvect} Finite-difference solution to the first-order
-finite-difference upwind method for advection, using 65 points and
-a variety of CFL numbers. \\
-\hydroexdoit{\href{https://github.com/zingale/hydro_examples/blob/master/advection/fdadvect.py}{fdadvect.py}}}
-\end{figure}
-%
-This method is first-order accurate.  
-
-
-Ultimately we will want higher-order accurate methods.  The most obvious
-change from our initial discretization is to try a higher-order spatial
-derivative.
-
-\begin{exercise}[FTCS and stability]
-{You may think that using a centered-difference for
-  the spatial derivative, $a_x \sim (a_{i+1} - a_{i-1})/(2 \Delta x)$
-  would be more accurate.  This method is called FTCS (forward-time,
-  centered-space).  Try this on the same test problems.}
-\end{exercise}
-
-\begin{figure}[t]
-\centering
-% figure generated by hydro_examples/advection/fdadvect.py
-\includegraphics[width=0.48\linewidth]{fdadvect-FTCS-C0_1}
-\includegraphics[width=0.48\linewidth]{fdadvect-FTCS-C0_5}
-\caption[FTCS finite-difference solution to linear advection]
-{\label{fig:fdadvect-ftcs} Finite-difference solution using the FTCS
-finite-difference method for advection using 65 points, modeling for
-only 1/10$^\mathrm{th}$ of a period.  The panel of the left is
-with $\cfl = 0.1$ and the panel on the right is $\cfl = 0.5$.\\
-\hydroexdoit{\href{https://github.com/zingale/hydro_examples/blob/master/advection/fdadvect.py}{fdadvect.py}}}
-\end{figure}
-
-You will find that no matter what value of $\cfl$ you choose with the
-FTCS method, the solution is unconditionally {\em unstable} (see
-Figure~\ref{fig:fdadvect-ftcs}).  If you continue to evolve the
-equation with this method, you would find that the amplitude grows
-without bound.  There is something about that discretization that
-simply gets the physics wrong.
-
-
-\subsection{Stability}
-
-\MarginPar{add a discussion of domain of dependence}
-
-The classic method for understanding stability is to consider the growth 
-of a single Fourier mode in our discretization.  That is, substitute in
-$a_i^n = A^n e^{Ii\theta}$, where $I = \sqrt{-1}$\footnote{our use of $i$ and $j$ as spatial indices presents an unfortunate clash of notation here, hence the use of $I$ for the imaginary unit}, and $\theta$ represents a
-phase.  A method is stable if $|A^{n+1}/A^n| \le 1$.  FTCS appears as:
-\begin{equation}
-  a_i^{n +1} = a_i^n - \frac{\cfl}{2} (a_{i+1}^n - a_{i-1}^n)
-\end{equation}
-Examining a Fourier mode shows that:
-\begin{align}
-  A^{n+1}e^{Ii\theta} &= A^n e^{Ii\theta} - \frac{\cfl}{2} \left (
-      A^n e^{I(i+1)\theta} - A^n e^{I(i-1)\theta} \right ) \\
-  A^{n+1} &= A^n  - \frac{\cfl}{2} A^n \left ( e^{I\theta} - e^{-I\theta}\right ) \\
-  A^{n+1} &= A^n \left ( 1 - I \cfl \sin\theta \right )
-\end{align}
-so the magnitude of the amplification is
-\begin{equation}
- \left | \frac{A^{n+1}}{A^n}\right |^2 = 1 + \cfl^2\sin^2\theta
-\end{equation}
-We see that there is no value of $\cfl$ that can make the method stable
-($|A^{n+1}/A^n| > 1$ always).  Doing the same analysis for
-Eq.~\ref{eq:fo} would show that the upwind method is stable for $0\le
-\cfl \le 1$. 
-
-\begin{exercise}[Stability of the upwind method]
-{Using the above stability analysis, considering the amplitude of a
-  single Fourier mode, show that the growth of a mode for the upwind
-  method (Eq.~\ref{eq:fo}) is:
-  \begin{equation}
-    \left | \frac{A^{n+1}}{A^n} \right |^2 = 
-           1 - 2\cfl(1-\cfl)(1-\cos\theta)
-  \end{equation}
-  and stability requires $2\cfl(1-\cfl) \ge 0$ or $0 \le \cfl \le 1$.
-}
-\end{exercise}
-
-It is important to note that this stability analysis only works for
-linear equations, where the different Fourier modes are decoupled,
-nevertheless, we use its ideas for nonlinear advection problems as
-well.
-
-Truncation analysis can also help us understand stability.  The idea
-here is to keep the higher order terms in the Taylor series to understand
-how they modify the actual equation you are trying to solve.
-
-\begin{exercise}[Stability analysis]
-{To get an alternate feel for stability, we can ask
-  what the terms left out by truncation look like.  That is, we can
-  begin with the discretized equation:
-\begin{equation}
-  a_i^{n+1} - a_i^n = -\frac{u \Delta t}{\Delta x} ( a_i^n - a_{i-1}^n )
-\end{equation}
-and replace $a_i^{n+1}$ with a Taylor expansion in time, and replace
-$a_{i-1}^n$ with a Taylor expansion in space, keeping terms to
-$O(\Delta t^3)$ and $O(\Delta x^3)$.  Replacing $\partial a/\partial t$
-with $-u \partial a/ \partial x$ in the higher-order terms, show 
-that our difference equation more closely corresponds to 
-\begin{eqnarray}
-\label{eq:advect_trunc_analysis}
-a_t + u a_x &=& \frac{u \Delta x}{2} \left ( 1 - \frac{\Delta t u}{\Delta x} \right ) \frac{\partial^2 a}{\partial x^2} \\
-            &=& \frac{u \Delta x}{2} (1 - \cfl) \frac{\partial^2 a}{\partial x^2}
-\end{eqnarray}
-}
-\end{exercise}
-
-
-Notice that the righthand side of Eq.~\ref{eq:advect_trunc_analysis}
-looks like a diffusion term, however, if $\cfl > 1$, then the coefficient
-of the diffusion is negative---this is unphysical.  This means that
-the diffusion would act to take smooth features and make them more
-strongly peaked---the opposite of physical diffusion.
-
-For FTCS, a similar truncation analysis would show that the diffusion term
-is always negative.
-
-\subsection{Implicit-in-time}
-
-An alternate approach to time-discretization is to do an implicit
-discretization.  Here our upwind method would appear as:
-\begin{equation}
-\frac{a^{n+1}_i - a^n_i}{\Delta t} = -u \frac{a^{n+1}_i - a^{n+1}_{i-1}}{\Delta x}
-\end{equation}
-The only change here is that the righthand side is evaluated at the new timelevel,
-$n+1$. We can write this as a linear system with coupled equations:
-\begin{equation}
--\cfl a^{n+1}_{i-1} + (1 + \cfl) a^{n+1}_i = a_i^n
-\end{equation}
-
-If we use periodic boundary conditions, then point $0$ and $N-1$ are
-identical, so we only need to update one of these.  Taking $a_0^{n+1} = a_{N-1}^{n+1}$, our system in matrix form appears as:
-\begin{equation}
-\renewcommand{\arraystretch}{1.5}
-\left ( \begin{array}{ccccccc} 
-1+\cfl & & & & & & -\cfl \\
--\cfl  & 1+\cfl &  \\
- &  -\cfl & 1+\cfl &  \\
- & & -\cfl & 1+\cfl &  \\
-&&&\ddots&\ddots &\\
-&&&&-\cfl & 1+\cfl & \\
-&&&&& -\cfl &1+\cfl
-\end{array}
-\right )
-%
-\left ( \begin{array}{c}
-a_1^{n+1} \\
-a_2^{n+1} \\
-a_3^{n+1} \\
-a_4^{n+1} \\
-\vdots \\
-a_{N-2}^{n+1} \\
-a_{N-1}^{n+1}
-\end{array}
-\right )
-=
-\left ( \begin{array}{c}
-a_1^{n} \\
-a_2^{n} \\
-a_3^{n} \\
-a_4^{n} \\
-\vdots \\
-a_{N-2}^{n} \\
-a_{N-1}^{n}
-\end{array}
-\right )
-\end{equation}
-This requires a matrix solve---this makes implicit methods generally more
-expensive than explicit methods.  However, stability analysis would show
-that this implicit discretization is stable for any choice of $\cfl$. (But
-one must not confuse stability with accuracy---the most accurate solutions
-with this method will still have a small $\cfl$).  Also note that the form of 
-the matrix will change depending on the choice of boundary conditions.
-Figure~\ref{fig:fdadvect-implicit} shows the result of solving this
-implicit system.
-
-\begin{figure}[t]
-\centering
-% figure generated by hydro_examples/advection/fdadvect_implicit.py
-\includegraphics[width=0.8\linewidth]{fdadvect-implicit}
-\caption[First-order implicit finite-difference solution to linear advection]
-{\label{fig:fdadvect-implicit} Finite-difference solution to the implicit first-order
-finite-difference upwind method for advection, using 65 points and
-a variety of CFL numbers. \\
-\hydroexdoit{\href{https://github.com/zingale/hydro_examples/blob/master/advection/fdadvect_implicit.py}{fdadvect\_implicit.py}}}
-\end{figure}
-
-\begin{exercise}[Implicit advection]
-{Code up the implicit advection scheme, but using outflow instead of
-periodic boundary conditions.  This will change the form of the
-matrix.  You can use the code from Figure~\ref{fig:fdadvect-implicit}
-as a starting point.}
-\end{exercise}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Eulerian vs.\ Lagrangian frames}
-
-It is useful to think about how our advected quantity, $a(x,t)$, changes in
-time.  The full time derivative is:
-\begin{equation}
-\frac{d a(x,t)}{dt} = \frac{\partial a}{\partial t} + \frac{\partial a}{\partial x}
-   \frac{dx}{dt}
-\end{equation}
-So the value of this derivative depends on the path, $x(t)$, that we choose
-to follow.  
-
-Consider an observer who is stationary.  They will watch the flow move
-past them, so $dx/dt = 0$, and $da/dt = \partial a/\partial t$.  
-This fixed frame is called {\em Eulerian frame}.
-
-Instead imagine an observer who moves with the flow, at the velocity $u$.
-This way they keep pace with an individual feature in the flow and track
-the changes it experiences.  In this case, $dx/dt = u$, and our derivative,
-commonly written as $D/Dt$ is:
-\begin{equation}
-\frac{D}{Dt} = \frac{\partial}{\partial t} + u \frac{\partial}{\partial x}
-\end{equation}
-This is the {\em Lagrangian frame}, and the derivative, $D/Dt$ is
-called the {\em Lagrangian derivative}, {\em material derivative},
-{\em convective derivative}, or {\em advective
-derivative}\footnote{and there are actually many more names...}.
-
-Our linear advection equation can be written simply as $Da/Dt = 0$.
-We've been solving the equations in the Eulerian frame---our grid is
-fixed and the fluid moves through it.  For hydrodynamics, it will be
-useful conceptually to consider the Lagrangian frame to understand how
-the fluid properties change in a particular fluid element over time.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Second-order advection in 1-d and the finite-volume method}
+\section{Advection and the finite-volume method}
 
 \label{ch:adv:sndorder}
 
@@ -439,17 +35,42 @@ simplicity of notation, we drop the $\langle \rangle$ going forward).
 To discretize Eq.~\ref{eq:advect-cons}, we integrate it over a zone,
 from ${x_{i-\myhalf}}$ to ${x_{i+\myhalf}}$, normalizing by the zone width,
 $\Delta x$:
-\begin{eqnarray}
-\frac{1}{\Delta x} \int_{x_{i-\myhalf}}^{x_{i+\myhalf}} a_t \, dx &=& 
+\begin{align}
+\frac{1}{\Delta x} \int_{x_{i-\myhalf}}^{x_{i+\myhalf}} a_t \, dx &= 
    - \frac{1}{\Delta x} \int_{x_{i-\myhalf}}^{x_{i+\myhalf}} \frac{\partial}{\partial x} f(a) \, dx \\
-\frac{\partial}{\partial t} a_i &=& 
-   - \frac{1}{\Delta x} \left \{ \left [f(a) \right ]_{i+\myhalf} - \left [f(a) \right ]_{i-\myhalf} \right \}
-\end{eqnarray}
+\frac{\partial}{\partial t} a_i &= 
+   - \frac{1}{\Delta x} \left \{ \left [f(a) \right ]_{i+\myhalf} - \left [f(a) \right ]_{i-\myhalf} \right \} \label{adv:eq:fvadv}
+\end{align}
 This is an evolution equation for the zone-average of $a$, and shows
 that it updates in time based on the fluxes through the boundary of
-the zone.  We discretize in time by evaluating the righthand side at
-the midpoint in time---this gives a centered-difference in time, which
-is second-order accurate:
+the zone.
+
+We now have a choice on how to proceed with the time-discretiation:
+\begin{enumerate}
+\item We can discretize ${\partial a_i}/{\partial t}$ directly as
+  $(a_i^{n+1} - a_i^n)/\Delta t$.  Then to achieve second-order
+  accuracy, we need to evaluate the righthand side of
+  Eq.~\ref{adv:eq:fvadv} at the midpoint in time ($n+1/2$).  This
+  gives rise to a predictor-corrector method (as described in
+  \cite{colella:1990}.  Sometimes this is called a characteristic
+  tracing method (a name which will be more clear when we discuss the
+  Euler equations).
+
+\item We can recognize that with the spatial discretization done, our
+  PDE has now become an ODE, and we can use standard ODE methods (like
+  Runge-Kutta) to integrate the system in time.  This is a method-of-lines
+  integration.
+
+\end{enumerate}
+
+We'll look at both of these in the next sections.
+
+
+\section{Second-order predictor-corrector scheme}
+
+We discretize Eq.~\ref{adv:eq:fvadv} in time by evaluating the
+righthand side at the midpoint in time---this gives a
+centered-difference in time, which is second-order accurate:
 \begin{equation}
 \frac{a_i^{n+1} - a_i^n}{\Delta t} = -\frac{\left [f(a) \right ]_{i+\myhalf}^{n+\myhalf} - \left [f(a) \right ]_{i-\myhalf}^{n+\myhalf}}{\Delta x}
 \label{eq:consupdate1d}
@@ -461,8 +82,12 @@ half-time, that is, we do :
 \left [f(a) \right ]_{i+\myhalf}^{n+\myhalf} = f(a_{i+\myhalf}^{n+\myhalf}) \enskip .
 \end{equation}
 We construct a second-order accurate approximation to
-$a_{i+\myhalf}^{n+\myhalf}$ by Taylor expanding the data in the cell to the
-interface.  Note that for each interface, there are two possible
+$a_{i+\myhalf}^{n+\myhalf}$ by Taylor expanding the data in the cell
+to the interface.  The construction of the interface state at the
+midpoint in time is the prediction and the conservative update in the
+correction here.
+
+Notice that for each interface, there are two possible
 interface states we can construct---one using the data to the left of
 the interface (which we will denote with a ``L'' subscript) and the
 other using the data to the right of the interface (denoted with an
@@ -837,35 +462,6 @@ conservative flux update.
 \end{figure}
 
 
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Errors and convergence rate}
-
-For the advection problem (with $u>0$), the analytic solution is to
-simply propagate the initial profile to the right.  This means that
-with periodic boundary conditions, after advecting for one period, our
-numerical solution should be identical to the initial conditions.  Any
-differences are our numerical error.  We can quantify the error by
-taking the norm of error\footnote{see \S~\ref{intro:sec:norm} for the
-  definition of the norms} as:
-\begin{equation}
-\epsilon^\mathrm{abs} = \| a^\mathrm{final} - a^\mathrm{init} \|_2 \equiv
-   \left [ \frac{1}{N} \sum_{i=1}^N 
-   ( a_i^\mathrm{final} - a_i^\mathrm{init} )^2
-  \right ]^{\myhalf}
-\end{equation}
-It is sometimes useful to compare to the norm of the original solution
-to get a measure of the relative error:
-\begin{equation}
-\epsilon^\mathrm{rel} \equiv \frac{\| a^\mathrm{final} - a^\mathrm{init} \|_2}
-   {\| a^\mathrm{init} \|_2}
-\end{equation}
-Note that for the absolute norm, it is important in these definitions
-to normalize by the number of zones, $N$, otherwise our error will be
-resolution-dependent.  For the relative norm, since we scale by a norm
-on the same grid, this normalization will cancel.
-%
 \begin{exercise}[Convergence testing]
 { Run the first-order solver for several different values of $\Delta x$,
 each a factor of 2 smaller than the previous.  Compute $\epsilon$ for
@@ -906,6 +502,49 @@ As seen in figure~\ref{fig:advnorm}, the choice of limiters can have a great
 effect on the accuracy.  Figure~\ref{fig:limiter_panel} shows the Gaussian and
 tophat profiles with several different limiters.
 
+\section{Method of lines approach}
+\label{adv:sec:mol_2d}
+
+In the above constructions, we computed a time-centered flux by
+predicting the interface state to the half-time (by Taylor-expanding
+in time through $\Delta t /2$).  Instead, we can recognize that with
+the spatial discretization done in Eq.~\ref{eq:adv:fvadv}, we are left
+with an ordinary differential equation in time that can then be solved
+using standard ODE techniques.
+
+Substituting in the flux as $f(a) = ua$, we have the ODE:
+\begin{equation}
+\ddt{a_i} = - \frac{u a_{i+1/2} - u a_{i-1/2}}{\Delta x}
+\end{equation}
+Note that there is no time-level indicated on the righthand side.  We
+find the interface values of $a$ by interpolating in space only.  For
+a second-order accurate method, we can use a piecewise linear
+reconstruction (see Figure~\ref{fig:advection:riemann-mol}), and
+evaluate the interface states as simply the point on the reconstructed
+line on the interface, e.g.,
+\begin{align}
+a_{i+\myhalf,L} &= a_{i} + \frac{1}{2} \Delta a_{i} \\
+a_{i+\myhalf,R} &= a_{i+1} - \frac{1}{2} \Delta a_{i+1}
+\end{align}
+%
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{riemann-mol}
+\caption[Method-of-lines spatial
+  reconstruction]{\label{fig:advection:riemann-mol} Piecewise linear
+  reconstruction of the zones showing the interface states used with
+  the method of lines approach.}
+\end{figure}
+%
+The same limiting ideas discussed above apply here.  As usual, we
+resolve the left-right degeneracy on the interface by solving the
+Riemann problem:
+\begin{equation}
+a_{i+\myhalf,j} = \mathcal{R}(a_{i+\myhalf,j,L}, a_{i+\myhalf,j,R})
+\end{equation}
+Once we have this interface state, we can integrate the ODE.  A
+Runge-Kutta method works fine here (it should be atleast second-order
+to match the spatial accuracy).
 \section{Multi-dimensional advection}
 
 The two-dimensional linear advection equation is:
@@ -1267,16 +906,11 @@ must also explain which form of the timestep calculation
 (Eq.~\ref{eq:adv:timestep:multid} or Eq.~\ref{eq:adv:timstep:mol}) is
 being used.
 
-\section{Method of lines approach}
-\label{adv:sec:mol_2d}
+\subsection{Method-of-lines in multi-dimensions}
 
-In the above constructions, we computed a time-centered flux by
-predicting the interface state to the half-time (by Taylor-expanding
-in time through $\Delta t /2$).  Instead, we can discretize our
-equation in space only, giving us an ordinary differential equation
-in time that can then be solved using standard ODE techniques.
-
-For example, we can start with Eq.~\ref{eq:adv:multiddivergence}, and define
+The multidimensional version of method-of-lines integration
+follows the ideas from the one-dimensional case.
+We can start with Eq.~\ref{eq:adv:multiddivergence}, and define
 the fluxes over though a face as:
 \begin{itemize}
 \item x-face:
@@ -1303,27 +937,32 @@ The result is the ODE:
    - \frac{(va)_{i,j+\myhalf} - (va)_{i,j-\myhalf}}{\Delta y}
 \end{equation}
 
-Note that there is no time-level indicated on the righthand side.  We
-find the interface values of $a$ by interpolating in space only, like:
+For the interface states, we separately construct slopes in each
+dimension: $\Delta^{(x)}a_{i,j}$ is the slope in the $x$-direction,
+and $\Delta^{(y)}a_{i,j}$ is the slope in the $y$-direction.  Then
+the interface states are:
 \begin{align}
-a_{i+\myhalf,j,L} &= a_{i,j} + \frac{1}{2} \Delta a_{i,j} \\
-a_{i+\myhalf,j,R} &= a_{i+1,j} - \frac{1}{2} \Delta a_{i+1,j}
+a_{i+\myhalf,j,L} &= a_{i,j} + \frac{1}{2} \Delta a^{(x)}_{i,j} \\
+a_{i+\myhalf,j,R} &= a_{i+1,j} - \frac{1}{2} \Delta a^{(x)}_{i+1,j}
 \end{align}
-As usual, we resolve the left-right degeneracy on the interface by solving 
-the Riemann problem:
-\begin{equation}
-a_{i+\myhalf,j} = \mathcal{R}(a_{i+\myhalf,j,L}, a_{i+\myhalf,j,R})
-\end{equation}
-A similar construction is done in the y-direction.  With these
-interface states, we have the method for evaluating the righthand side
-of our ODE.  We can then evolve the ODE using a Runge-Kutta
-integration method.  At each stage of the RK integration, we do the
-same construction of the interface states, solve the Riemann problem,
-etc.
+and
+\begin{align}
+a_{i,j+\myhalf,L} &= a_{i,j} + \frac{1}{2} \Delta a^{(y)}_{i,j} \\
+a_{i,j+\myhalf,R} &= a_{i,j+1} - \frac{1}{2} \Delta a^{(y)}_{i,j+1}
+\end{align}
+
+With these interface states, we have the method for evaluating the
+righthand side of our ODE.  We can then evolve the ODE using a
+Runge-Kutta integration method.  At each stage of the RK integration,
+we do the same construction of the interface states, solve the Riemann
+problem, etc.  Notice that unlike the directionally-split method, we
+are doing the update in both directions at the same time---we are
+relying on the ODE integrator to do the coupling in the different
+directions for us.
 
 This construction is a lot simpler than the unsplit method described
 previously.  The cost of this simplicity is a reduced range of
-stability.  
+stability.
 
 Performaing the stability analysis here is much more complicated.  For
 simplicity, consider a simple first-order upwind scheme in
@@ -1383,6 +1022,298 @@ for this application~\cite{gottliebshu:1996}.
   which is stable.  
   This was run as {\tt ./pyro.py advection\_rk tophat inputs.tophat}}
 \end{figure}
+
+
+
+\section{High-Order Finite difference methods}
+\label{sec:ho-fd}
+
+Chapter~\ref{ch:advection} introduced numerical methods for the linear
+advection equation
+\begin{equation}
+\label{eq:ho-advect}
+a_t + u a_x = 0
+\end{equation}
+that were first or second order in space. The advantages of using numerical
+methods that are higher order can be large, especially when in regions where
+the flow is smooth. However, these must be balanced against the additional
+computational cost and complexity. In addition, many higher order methods do no
+better than second order methods in cases with discontinuities.
+
+\subsection{The problem with higher-order finite volume methods}
+
+The finite volume approach outlined in chapter~\ref{ch:fv}
+%\todo{label missing in fv tex file?}
+matches the physics of hyperbolic balance
+laws perfectly, by maintaining the conservation of appropriate quantities using
+the fluxes through the surfaces of each control volume or computational cell.
+However, this leads to significant computational costs and complexities when
+going beyond second order methods.
+
+The inter-cell fluxes are computed by integrals over the face of the
+computational cell. In one dimension the face is a single point and the
+integral needs the flux evaluated at a single point, as in
+equation~\ref{eq:consup}. In higher dimensions the face is one dimensional
+(e.g., a line) or two dimensional (e.g., a square) and so the integral must be
+approximated by evaluating the flux at \emph{multiple} points. If we use Gauss
+quadrature, this means that a third order method would require at least two
+flux evaluations per face in two dimensions, and typically four evaluations per
+face in three dimensions.
+
+%
+% This comment about the timestep doesn't hold in general, as pointed out by
+% Mike. I think it *is* relevant for directionally split codes where the
+% transverse Riemann Problem isn't solved. That's probably too technical a
+% distinction to make this early.
+%
+%As well as the additional computational cost, there is also typically an
+%additional restriction on the timestep. Intuitively this can be seen by
+%thinking about the flux evaluations again. We fix the values either side of the
+%cell boundary in order to compute the flux at one point.  The timestep
+%restriction is given by the time it take for information to propagate from a
+%different flux evaluation point, which would change the information available.
+%As we need to compute the flux at more points within the cell faces, the
+%distance between points where the flux is evaluated goes down, reducing the
+%time it takes for information to propagate from one point to another.
+
+\subsection{Finite differences}
+
+The conservative finite difference method starts from the endpoint for finite
+volume methods, by considering the update formula~\eqref{eq:consup}
+%\todo{is this the right equation to ref? Don't think it's labelled?}
+\begin{equation}
+\tag{\ref{eq:consup}}
+\frac{\partial \langle \Uc\rangle_{i}}{\partial t} =
+  - \frac{1}{\Delta x} \left \{ \Fb_{i+\myhalf} -
+                                \Fb_{i-\myhalf} \right \}.
+\end{equation}
+In the finite difference method a interpretation used is different. We are now
+thinking of
+\begin{equation}
+  \label{eq:fd-deriv}
+  \frac{1}{\Delta x} \left \{ \Fb_{i+\myhalf} -
+                                \Fb_{i-\myhalf} \right \}
+\end{equation}
+as representing a direct approximation to the derivative of the flux at $x_i$.
+In particular, we are \emph{not} thinking of $\Fb_{i+\myhalf}$ as being
+directly linked to the flux. Crucially the update still ensures global
+conservation, as the ``flux'' term is re-used for neighbouring points in the
+same way as in the finite volume case.
+
+When we combine this viewpoint with the Method of Lines approach in
+section~\ref{adv:sec:mol_2d}, the implementation of a high-order finite boils
+down to
+\begin{itemize}
+  \item using a high-order time integration scheme (such as a high order
+  Runge-Kutta method);
+  \item finding a way that the finite difference in equation~\eqref{eq:fd-deriv}
+  approximates the derivative of the flux both stably, and to a sufficiently
+  high order.
+\end{itemize}
+
+\subsection{WENO reconstruction}
+\label{sec:WENO}
+
+\begin{figure}
+  \includegraphics[width=0.96\linewidth]{weno-convergence}
+  \caption[Convergence rate of high-order reconstructions]{A smooth sine function is reconstructed on the unit interval from the (integral-average) data, at the blue circles in the top plot, to the right, at the red triangles in the top plot. The convergence rate with grid resolution for the 5 point stencil of equation~\eqref{eq:weno-advection-5pt} and the 3 point stencils of equation~\eqref{eq:weno-advection-3pt} are shown to match expectations in the bottom plots. The error from the WENO reconstruction described in section~\ref{sec:WENO-algorithm} is, on this smooth function, converging with the expected order but larger in magnitude.}
+  \label{fig:weno-convergence}
+\end{figure}
+
+For the advection equation with constant advection speed $u$, our higher-order
+method requires us to find a high-order approximation to $a_{i+\myhalf}$. If we
+considered the five points $a_{j}, j \in [i-2, \dots, i+2]$ then we could use
+the information from all five of these points to approximate $a_{i+\myhalf}$ as
+\begin{equation}
+  \label{eq:weno-advection-5pt}
+  a^{(\text{Fifth})}_{i+\myhalf} = \tfrac{1}{60} \left( 2 \langle a \rangle_{i-2} - 13 \langle a \rangle_{i-1} + 47 \langle a \rangle_{i} + 27 \langle a \rangle_{i+1} - 3 \langle a \rangle_{i+2} \right) + {\cal O}(\Delta x^5).
+\end{equation}
+Alternatively we could use only three of the points, in three different ways:
+\begin{subequations}
+  \label{eq:weno-advection-3pt}
+  \begin{align}
+    a^{(\text{Third}, 2)}_{i+\myhalf} &= \tfrac{1}{6} \left( 2 \langle a \rangle_{i-2} - 7 \langle a \rangle_{i-1} + 11 \langle a \rangle_{i} \right) + {\cal O}(\Delta x^3), \\
+    a^{(\text{Third}, 1)}_{i+\myhalf} &= \tfrac{1}{6} \left( - \langle a \rangle_{i-1} + 5 \langle a \rangle_{i} + 2 \langle a \rangle_{i+1} \right) + {\cal O}(\Delta x^3), \\
+    a^{(\text{Third}, 0)}_{i+\myhalf} &= \tfrac{1}{6} \left( 2 \langle a \rangle_{i} + 5 \langle a \rangle_{i+1} - \langle a \rangle_{i+2} \right) + {\cal O}(\Delta x^3).
+  \end{align}
+\end{subequations}
+
+Which is better? The five point stencil gives higher order accuracy, but
+includes information from both sides of the point. This ignores information from
+the characteristics and, near discontinuities, will lead to Gibbs oscillations.
+The three point stencils give lower accuracy. However, they give us the
+flexibility to choose a stencil to avoid discontinuities, possibly using the
+characteristic information. The advantages of the higher-order methods are illustrated by reconstructing a smooth function in figure~\ref{fig:weno-convergence}. The disadvantages of using a fixed stencil are illustrated by reconstructing a non-smooth function in figure~\ref{fig:weno-weights}.
+
+
+\begin{exercise}[ENO stencils]
+{Check that equations~\eqref{eq:weno-advection-5pt} and
+\eqref{eq:weno-advection-3pt} give the claimed order of accuracy results.}
+\end{exercise}
+
+The method of choosing the ``best'' stencil (to avoid discontinuities as far as
+possible) is called \emph{Essentially Non-Oscillatory} (ENO) reconstruction. It
+is not as accurate as it could be given the size of the stencil it uses, and
+the logical branches required to find the ``best'' stencil can reduce
+computational performance.
+
+An alternative that avoids the problems of ENO schemes are the \emph{Weighted}
+ENO, or WENO, schemes. These use a combination of the possible ENO stencils to
+reconstruct $a_{i+\myhalf}$. This relies on the observation that there are
+constants $C_k$ such that, for example,
+\begin{equation}
+  \label{eq:WENO-C-weights}
+  a^{(\text{Fifth})}_{i+\myhalf} = \sum_{k=0}^{2} C_k a^{(\text{Third}, r)}_{i+\myhalf}.
+\end{equation}
+
+\begin{exercise}[WENO weights]
+{Check that the constants $C_0 = \tfrac{3}{10}, C_1 = \tfrac{3}{5}, C_2 =
+\tfrac{1}{10}$ make equation~\eqref{eq:WENO-C-weights} consistent with
+equations~\eqref{eq:weno-advection-5pt} and \eqref{eq:weno-advection-3pt}.}
+\end{exercise}
+
+The WENO methods work by retaining the sum over all stencils as in
+equation~\eqref{eq:WENO-C-weights}, but adjusting the weights to avoid
+oscillations. Ideally, in regions where the $a^{(0,1)}$ stencils include a
+shock but the $a^{(2)}$ stencil does not the weights should be $\tilde{C}_0 = 0
+= \tilde{C}_1$ and $\tilde{C}_2 = 1$. In order for this sum to make sense we
+will need the weights to add to $1$.
+
+\subsubsection{WENO algorithm}
+\label{sec:WENO-algorithm}
+
+\begin{figure}
+  \includegraphics[width=0.96\linewidth]{weno-weights}
+  \caption[WENO reconstruction and weights]{A non-smooth function is reconstructed on the unit interval. The 5 point stencil of equation~\eqref{eq:weno-advection-5pt} and the 3 point stencils of equation~\eqref{eq:weno-advection-3pt} both show oscillations near the discontinuity, whilst the WENO reconstruction does not. The WENO algorithm depends on measuring the smoothness of the function. The Jiang-Shu smoothness indicators $\beta$ are mostly zero, but spike near the discontinuity. This feeds into the weight $\omega$ that the WENO algorithm gives to each 3 point stencil it uses. Away from the discontinuity the weights revert to the optimal $C$ weights, but near the discontinuity a single $\omega$ weight dominates meaning only a single 3 point stencil is used.}
+  \label{fig:weno-weights}
+\end{figure}
+
+We can now write out the full WENO algorithm of order $(2 r - 1)$. The constant
+$r$ sets the size of the individual stencils as well as the (optimal) order of
+the scheme. This section mostly uses the notation of Gerolymos et al.~\cite{Gerolymos2009}, and we will drop the integral average notation (so $\langle a \rangle_i$ will be denoted $a_i$).
+
+First compute the individual stencils
+\begin{equation}
+  \label{eq:weno-stencils}
+  a_{r, k, i+\myhalf} = \sum_{\ell=0}^{r-1} A_{r, k, \ell} a_{i+k-\ell}, \quad k = 0, \dots, r-1.
+\end{equation}
+Here the $A_{r, k, \ell}$ terms are constants which, for given scheme accuracy
+$r$ are needed to compute the $k^{\text{th}}$ stencil.
+
+We then want to combine these individual stencils to compute the WENO result.
+For this we write
+\begin{equation}
+  \label{eq:weno-reconstruction}
+  a_{r, WENO, i+\myhalf} = \sum_{k=0}^{r-1} \omega_{r, k, i+\myhalf} a_{r, k, i+\myhalf}.
+\end{equation}
+Here the $\omega_{r, k, i+\myhalf}$ terms are the weights that vary from point
+to point. They must sum to one, so that we have a convex combination of the
+stencils:
+\begin{equation}
+  \label{eq:weno-convex}
+  \sum_{k=1}^{r-1} \omega_{r, k, i+\myhalf} = 1.
+\end{equation}
+We also want the weights to match the \emph{optimal} weights $C_{r, k}$ in
+smooth regions. The optimal weights are defined such that
+\begin{equation}
+  \label{eq:weno-optimal}
+  a_{r, WENO, i+\myhalf} = \sum_{k=0}^{r-1} C_{r, k} a_{r, k, i+\myhalf}
+\end{equation}
+is accurate to order ${\cal O}(\Delta x^{(2 r - 1)})$ when $q$ is smooth.
+
+The \emph{choice} of how to get from the optimal weights $C_{r, k}$ to the
+nonlinear weights $\omega_{r, k, i+\myhalf}$ defines the WENO scheme. The
+standard choice of Jiang and Shu is to introduce a measure of the smoothness of
+the $k^{\text{th}}$ stencil by computing the sum of the integral averages of
+its derivatives from order $1$ up to order $2 r - 1$. For practical
+implementation purposes this means computing the \emph{smoothness indicators}
+$\beta_{r, k, i+\myhalf}$ as
+\begin{equation}
+  \label{eq:weno-smoothness}
+  \beta_{r, k, i+\myhalf} = \sigma_{r, k, \ell, m} a_{i+k-\ell} a_{i+k-m}.
+\end{equation}
+The terms $\sigma_{r, k, \ell, m}$ are pre-computed constants which give the
+coefficients in the quadratic form for the $k^{\text{th}}$ stencil of width $r$
+in the reconstruction. These smoothness indicators are non-negative, and will
+be large when the derivatives are large in magnitude. The Jiang and Shu weights
+are then set by
+\begin{subequations}
+  \label{eq:weno-nonlinear-weights}
+  \begin{align}
+    \label{eq:weno-nonlinear-weights-omega}
+    \omega_{r, k, i+\myhalf} &= \frac{\alpha_{r, k, i+\myhalf}}{\sum_{k=0}^{r-1} \alpha_{r, k, i+\myhalf}}, \\
+      \label{eq:weno-nonlinear-weights-alpha}
+    \alpha_{r, k, i+\myhalf} &= \frac{C_{r, k}}{\epsilon + \beta_{r, k, i+\myhalf}^2}.
+  \end{align}
+\end{subequations}
+Here $\epsilon$ is a small number introduced to avoid division-by-zero problems.
+The form of $\omega_{r, k, i+\myhalf}$ in
+equation~\eqref{eq:weno-nonlinear-weights-omega} guarantees that the convex sum
+condition in equation~\eqref{eq:weno-convex} holds. The form of $\alpha_{r, k,
+i+\myhalf}$ ensures that when all the smoothness indicators $\beta_{r, k,
+i+\myhalf}$ are the same magnitude the weights $\omega_{r, k, i+\myhalf}$ will
+match the optimal weights $C_{r, k}$, but when a smoothness indicator is large
+(i.e., when the associated stencil has large derivatives, typically associated
+with discontinuities), the contribution of its associated stencil will be small.
+An example of this is shown in figure~\ref{fig:weno-weights}.
+
+Finally, we note that this method has reconstructed $a_{i+\myhalf}$ from the
+left. For the advection equation case where the advection speed $u$ is positive
+this is all we need: the characteristic information tells us that we should use
+this reconstruction. In the case where the advection speed is negative we
+should reconstruct from the right. In the implementation it is easiest to
+implement only one reconstruction direction and pass the data in in reverse
+order.
+
+
+\begin{exercise}[WENO reconstruction]
+{Taking the values for the $C$, $A$ and $\sigma$ constants from Gerolymos et
+al.\ or Shu's review~\cite{Shu1997}, construct a WENO reconstruction method for
+$r=2$. Check your results on smooth and non-smooth functions.}
+\end{exercise}
+
+\subsubsection{Implementation issues with WENO schemes}
+\label{sec:weno-implementation}
+
+A convergence test on the WENO schemes with $r=3$ and $r=5$ is shown in
+figure~\ref{fig:weno-converge-gaussian-rk4}. This should be compared to
+figure~\ref{fig:advnorm}, as in both a Gaussian profile is advected five
+times around a periodic domain. The WENO schemes show higher absolute accuracy
+for moderate size grids ($N \gtrsim 100$) and show faster convergence.
+
+However, it is clear that whilst the $r=3$ method converges at fifth order as
+expected, the $r=5$ WENO method does not converge at ninth order but at fourth
+order. This is explained by the time integrator. We remember that any solver
+has an error both from the spatial and the time discretization. In
+figure~\ref{fig:weno-converge-gaussian-rk4} the time integrator is the classic
+fourth order Runge-Kutta, and it is the error from this integrator that is
+dominating.
+
+To confirm this, figure~\ref{fig:weno-converge-gaussian} uses the eigth order
+Dormand-Price Runge-Kutta method with adaptive step size control (using the
+\texttt{scipy.integrate.ode} routine). Here we see high order convergence for
+all $r$, and in each case the convergence rate is $2 r - 2$ for \textbf{no
+reason I can understand}.
+
+\begin{figure}[t]
+\centering
+% figure generated by hydro_examples/advection/weno.py
+\includegraphics[width=0.8\linewidth]{weno-converge-gaussian-rk4}
+\caption[High order WENO convergence rates for linear advection]
+{\label{fig:weno-converge-gaussian-rk4} WENO solutions for advecting a Gaussian five periods, using two different orders. A fourth order Runge-Kutta method is used for time evolution. For $r=3$ we see the expected fifth ($2 r - 1$) order convergence. For $r=5$ we see fourth order, rather than the expected ninth order, convergence. This is as the error from the time integrator dominates. \\
+\hydroexdoit{\href{https://github.com/zingale/hydro_examples/blob/master/advection/weno.py}{weno.py}}}
+\end{figure}
+%
+
+\begin{figure}[t]
+\centering
+% figure generated by hydro_examples/advection/weno.py
+\includegraphics[width=0.8\linewidth]{weno-converge-gaussian}
+\caption[Very high order WENO convergence rates for linear advection]
+{\label{fig:weno-converge-gaussian} WENO solutions for advecting a Gaussian one periods, using four different orders. An eighth order Dormand-Price Runge-Kutta method is used for time evolution. This minimizes the time integrator error and we see convergence at order $2 r - 2$ for all schemes, although the time integrator error eventually shows in the highest order case. \\
+\hydroexdoit{\href{https://github.com/zingale/hydro_examples/blob/master/advection/weno.py}{weno.py}}}
+\end{figure}
+%
 
 
 \section{Going further}
